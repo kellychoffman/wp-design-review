@@ -47,7 +47,7 @@ Or copy the folder into `wp-content/plugins/` and activate it. Then open any pag
 - Review tokens are stored in the database (so you can copy a link again later). Anyone with database access could see them, but they could see your drafts too.
 - Page caching plugins and CDNs must honor `DONOTCACHEPAGE` / `Cache-Control: no-store` for review URLs. Most do.
 - "Publish this look" replaces the site's current global styles with the look. WordPress keeps style revisions.
-- Comments become Notes by adding a note reference to the block in post content, the same way the editor does. This is written without an editor user, so reviewers' comments can appear on published pages' revisions history.
+- Comments become Notes by adding a note reference to the block in post content, the same way the editor does. Each comment that starts a new thread therefore adds a revision to the page.
 
 ## Out of scope for v1
 
