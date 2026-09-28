@@ -1,0 +1,11 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "preferredVersions": { "php": "8.3", "wp": "latest" },
+  "landingPage": "/wp-admin/admin.php?page=wp-design-review",
+  "steps": [
+    { "step": "login" },
+    { "step": "installTheme", "themeData": { "resource": "wordpress.org/themes", "slug": "twentytwentyfive" }, "options": { "activate": true } },
+    { "step": "activatePlugin", "pluginPath": "wp-design-review/wp-design-review.php" },
+    { "step": "runPHP", "code": "<?php require '/wordpress/wp-load.php'; update_option('permalink_structure','/%postname%/'); wp_insert_post(['post_type'=>'page','post_status'=>'publish','post_title'=>'Studio','post_name'=>'studio','post_content'=>'<!-- wp:heading --><h2 class=\"wp-block-heading\">Slow down, look around.</h2><!-- /wp:heading --><!-- wp:paragraph --><p>A studio for small, considered things.</p><!-- /wp:paragraph -->']); wp_insert_post(['post_type'=>'page','post_status'=>'draft','post_title'=>'Secret Launch','post_name'=>'secret','post_content'=>'<!-- wp:paragraph --><p>Unannounced product copy.</p><!-- /wp:paragraph -->']);" }
+  ]
+}

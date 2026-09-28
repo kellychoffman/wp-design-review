@@ -1,42 +1,32 @@
-# Engineering appendix (draft, for later)
+# Engineering notes
 
-Kept separate on purpose: the design docs avoid implementation terms. This is the starting sketch for a first build. Nothing here is verified yet.
+How the plugin works. Kept separate from the design docs on purpose.
 
-## Shape of the plugin
+## Structure
 
-- **Reviews** stored as a private custom post type or table: token hash, scope, target post IDs or style variation, expiry, password hash, options, status, created by.
-- **Signed URL**: `/?dr_review=<token>`, or a pretty path. Store only a hash of the token. Token comparison is constant-time.
-- **Request handling**: on `template_redirect`, if a valid, unexpired, unrevoked token is present, set a request-scoped flag. Everything below applies to that request only.
+- `wp-design-review.php`: bootstrap and autoloader.
+- `src/Reviews.php`: reviews as private `dr_review` posts with meta (token, scope, target, look, expiry, password hash, visitor level, state, views, approvals). Status is computed: active, live, expired, ended, revoked. Looks are the theme's style variations, deduplicated by title (the fuller variation wins).
+- `src/Frontend.php`: detects `?dr_review=` (then a cookie), gates it (ended page, password page), and decides scope after the main query runs.
+- `src/Feedback.php`: visitor comments. Each is logged as a private `dr_feedback` post and, when it points at a block, also becomes a Note.
+- `src/Rest.php`: editor routes (capability checked) and visitor routes (authorized by the link token in an `X-WPDR-Token` header).
+- `src/Admin.php`: the Design Reviews screen and editor assets.
+- `assets/editor.js`: Share review sidebar panel, no build step.
+- `assets/review-bar.js`: the review bar in a shadow root so theme CSS cannot touch it.
 
-## Applying the pending look
+## Applying a look
 
-- Filter the site's Global Styles data for the request (`wp_theme_json_data_user` or the equivalent user-data filter) so the pending styles or the chosen variation replace the saved ones. Nothing is written to the database.
-- Scope *page*: only the target post renders; other URLs 404 or redirect to live. Scope *site*: all published URLs render under the pending look, with the token carried in a cookie or a path prefix.
-- **Compare to live**: the same request with the filter off. Toggle swaps via a query flag and restores scroll position on the client.
+A filter on `wp_theme_json_data_user` merges the variation over the site's user styles for that request only. The scope is only known after the main query, so the filter is inert until `resolve_scope` turns it on and clears the theme JSON caches. Those caches live in a non-persistent group, so the pending look cannot leak to other requests.
 
-## Draft content
+## Unpublished pages
 
-- Default: query as normal, published content only.
-- Opt-in: filter `the_content` / post lookup to the latest revision or draft for target posts only. Bar shows the "includes unpublished copy" line.
-
-## Review chrome
-
-- Injected on `wp_footer`/`wp_body_open` in a shadow-DOM container so theme CSS can't break it and it can't leak into the theme.
-- No admin bar (`show_admin_bar` false for the request).
+For a page-scope review of a draft, `posts_pre_query` returns that one post, cloned with a published status, for that link only. Canonical redirects are switched off for that request. Nothing else changes.
 
 ## Comments to Notes
 
-- Visitor POST to a REST route validated by token, rate limited.
-- Creates a Note (block comment) authored by a synthetic "reviewer" identity, with meta: name, viewport, compare state, screenshot ref.
-- Resolve on the editor side writes back a status the review page polls or fetches on load.
+The bar tags each rendered block of the shared post with `data-dr-block`, a path of indexes into the parsed block tree (matched by a hash of name, attributes and inner content while inside `the_content`). The server walks that path, inserts a `note` comment, and sets `metadata.noteId` on the block. If the block already has a thread the comment becomes a reply. Saving content temporarily removes the kses filters, since the request has no user. Resolving adds an empty child note with `_wp_note_status = resolved` on the thread root, which is what the editor does.
 
-## Headers and hygiene
+## Known gaps
 
-- `X-Robots-Tag: noindex, nofollow`, `Cache-Control: private, no-store`, exclude from sitemaps and feeds, no Open Graph.
-- Publish hook: on publish of target content, set status to `live`, schedule retirement.
-
-## Open technical questions
-
-- Which caching layers (page cache, CDN) reliably honor the bypass for tokened requests.
-- Whether a style variation preview can be scoped to the request cleanly in current core, or needs a wrapper.
-- How Notes handle a non-user author.
+- No automated tests yet. Behavior was checked by hand against WordPress 7.0 in Playground: link creation, look applied only to the review request, drafts only via opt-in, password gate, scope, compare, comment to Note (including replies), resolve, revoke, publish and live state.
+- Looks come from style variations only. There is no saved "pending Global Styles" concept in core to read from.
+- Side-by-side compare, viewport switching and visitor-visible threads are not built.
